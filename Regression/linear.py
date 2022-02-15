@@ -1,6 +1,4 @@
 import pandas as pd
-import numpy as np
-from math import inf
 
 
 def loss(m, b, x, y, n, nn=0):
@@ -31,7 +29,7 @@ def update_alpha(alpha, old_los, los):
 
 
 def linear_regression(m, b, x, y, n, alpha):
-    stop_steps = 200
+    stop_steps = 1000
     steps = 0
     dm = derivative_m(m, b, x, y, n)
     db = derivative_b(m, b, x, y, n)
@@ -60,54 +58,23 @@ def linear_regression(m, b, x, y, n, alpha):
 
     return m, b
 
+def univariable():
+    pass
+
+
+def multivariable():
+    pass
 
 if __name__ == '__main__':
-    data = pd.read_excel('./Concrete_Data.xls').to_numpy()
+    data = pd.read_excel('./Concrete_Data.xls')
+    rows = len(data.index)
+    cols = len(data.columns)
+
     train_len = 900
     test_len = 130
 
-    train_y = data[:train_len, -1].reshape(-1, 1)
-    test_y = data[train_len:, :-1].reshape(-1, 1)
-    train_x = data[:train_len, :-1]
-    test_x = data[train_len:, :-1]
-
-    alpha = 0.000001
-    cx = np.concatenate([train_x, np.ones((train_x.shape[0], 1))], axis=1)
-    m = np.zeros(9).reshape(-1, 1)
-
-    ls = inf
-    los = inf
-    step = 0
-    max_steps = 1000
-    while ls > 0.01:
-        new_los = ((train_y - cx@m) ** 2).sum() / train_len
-
-        derivatives = (m.T@cx.T@cx - train_y.T@cx) / train_len
-        m -= (derivatives.T * alpha)
-        ls = np.linalg.norm(derivatives)
-        step += 1
-
-        # if new_los < los:
-        #     alpha *= 1.01
-        # else:
-        #     alpha *= 0.5
-
-        los = new_los
-        print(los, ls)
-
-    print()
-
-    # while
-
-
-
-
-
-
-
-
     # for col in range(cols - 1):
-    col = 5
+    col = 6
     ret = linear_regression(
         m=0, b=0,
         x=data[data.columns[col]], y=data[data.columns[cols - 1]],
@@ -120,5 +87,4 @@ if __name__ == '__main__':
         n=test_len+train_len, nn=train_len
     ))
     pass
-
 
