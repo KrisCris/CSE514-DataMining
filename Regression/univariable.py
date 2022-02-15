@@ -1,4 +1,5 @@
 import pandas as pd
+from math import inf
 
 
 def loss(m, b, x, y, n, nn=0):
@@ -31,15 +32,10 @@ def update_alpha(alpha, old_los, los):
 def linear_regression(m, b, x, y, n, alpha):
     stop_steps = 1000
     steps = 0
-    dm = derivative_m(m, b, x, y, n)
-    db = derivative_b(m, b, x, y, n)
-    los = loss(m, b, x, y, n)
+    dm = inf
+    db = inf
+    los = inf
     while (abs(dm) + abs(db)) > 0.001 and steps < stop_steps:
-        # new_dm = derivative_m(m, b, x, y, n)
-        # new_db = derivative_b(m, b, x, y, n)
-        #
-        # alpha = update_alpha(alpha, dm, new_dm, db, new_db)
-
         dm = derivative_m(m, b, x, y, n)
         db = derivative_b(m, b, x, y, n)
         tmp_los = loss(m, b, x, y, n)
@@ -48,22 +44,16 @@ def linear_regression(m, b, x, y, n, alpha):
         m -= alpha * dm
         b -= alpha * db
 
-        print("######" + str(steps))
-        print('m:' + str(m))
-        print('b:' + str(b))
-        print('dm:'+str(dm))
-        print('db:'+str(db))
-        print('lost:' + str(loss(m, b, x, y, n)))
+        # print("######" + str(steps))
+        # print('m:' + str(m))
+        # print('b:' + str(b))
+        # print('dm:'+str(dm))
+        # print('db:'+str(db))
+        # print('lost:' + str(loss(m, b, x, y, n)))
         steps += 1
 
-    return m, b
+    return m, b, los, steps
 
-def univariable():
-    pass
-
-
-def multivariable():
-    pass
 
 if __name__ == '__main__':
     data = pd.read_excel('./Concrete_Data.xls')
@@ -73,18 +63,17 @@ if __name__ == '__main__':
     train_len = 900
     test_len = 130
 
-    # for col in range(cols - 1):
-    col = 6
-    ret = linear_regression(
-        m=0, b=0,
-        x=data[data.columns[col]], y=data[data.columns[cols - 1]],
-        n=train_len, alpha=0.0000001
-    )
-    print(ret)
-    print(loss(
-        m=ret[0], b=ret[1],
-        x=data[data.columns[col]], y=data[data.columns[cols - 1]],
-        n=test_len+train_len, nn=train_len
-    ))
-    pass
+    for col in range(cols - 1):
+        ret = linear_regression(
+            m=0, b=0,
+            x=data[data.columns[col]], y=data[data.columns[cols - 1]],
+            n=train_len, alpha=0.0000001
+        )
+        print("#Col: ", col)
+        print("Train Result (m,b,loss,steps): ", ret)
+        print("Test Loss: ", loss(
+            m=ret[0], b=ret[1],
+            x=data[data.columns[col]], y=data[data.columns[cols - 1]],
+            n=test_len+train_len, nn=train_len
+        ))
 
