@@ -15,6 +15,16 @@ def update_alpha(alpha, los, new_los):
     return alpha
 
 
+def prepare_data_univariate(df, idx, start=0, end=900):
+    # n * 1 y vector
+    prep_y = df[start:end, -1].reshape(-1, 1)
+    # n * m matrix
+    prep_x = df[start:end, idx].reshape(-1, 1)
+    # n * m+1 matrix, last col are ones
+    prep_x_ones = np.concatenate([prep_x, np.ones((prep_x.shape[0], 1))], axis=1)
+    return [prep_x_ones, prep_y]
+
+
 def prepare_data_multivariate(df, start=0, end=900):
     # n * 1 y vector
     prep_y = df[start:end, -1].reshape(-1, 1)
@@ -57,7 +67,7 @@ def standardize(x, scales=None):
         return x
     else:
         arr = []
-        for i in range(x.shape[1]-1):
+        for i in range(x.shape[1] - 1):
             max_val = x[:, i].max()
             min_val = x[:, i].min()
             gap = max_val - min_val
@@ -68,39 +78,7 @@ def standardize(x, scales=None):
         return x, arr
 
 
-
-def multivariable_regression(prepared_data):
-    # train phrase
-    x_ones_train, y_train = prepared_data
-    m_b = prepare_m_b(x_ones_train.shape[1])
-
-    # init vars
-    norm_derivatives = inf
-    loss = inf
-    alpha = 0.000001
-    steps = 0
-    max_steps = 50000
-
-    while norm_derivatives > 0.01 and steps < max_steps:
-        # derivatives of m and b
-        derivatives = matrix_derivatives(y=y_train, x=x_ones_train, w=m_b, size=train_len)
-
-        # update m and b
-        m_b -= (derivatives.T * alpha)
-
-        # l2 norm of vector of partial derivatives of m and b
-        norm_derivatives = np.linalg.norm(derivatives)
-        steps += 1
-
-        # update learning rate based on loss
-        new_loss = matrix_loss(x_ones_train, y_train, m_b, train_len)
-        alpha = update_alpha(alpha=alpha, los=loss, new_los=new_loss)
-        loss = new_loss
-
-    return m_b, loss, steps
-
-
-def multivariate_polynomial_regression(prepared_data, alpha=0.000000000001, max_steps=500000):
+def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.001):
     # train phrase
     x_45_train, y_train = prepared_data
     m_b = prepare_m_b(x_45_train.shape[1])
@@ -110,7 +88,7 @@ def multivariate_polynomial_regression(prepared_data, alpha=0.000000000001, max_
     loss = inf
     steps = 0
 
-    while norm_derivatives > 0.01 and steps < max_steps:
+    while norm_derivatives > stop_val and steps < max_steps:
         # derivatives of m and b
         derivatives = matrix_derivatives(y=y_train, x=x_45_train, w=m_b, size=train_len)
 
@@ -125,7 +103,7 @@ def multivariate_polynomial_regression(prepared_data, alpha=0.000000000001, max_
         new_loss = matrix_loss(x_45_train, y_train, m_b, train_len)
         alpha = update_alpha(alpha=alpha, los=loss, new_los=new_loss)
         loss = new_loss
-        print(loss)
+        # print(loss)
 
     return [m_b, loss, steps]
 
@@ -134,23 +112,54 @@ if __name__ == '__main__':
     data = pd.read_excel('./Concrete_Data.xls').to_numpy()
     train_len = 900
     test_len = 130
-    # cols = 9
 
-    # train_mb, train_los, step = multivariable_regression(prepare_data_multivariate(df=data))
-    # print("train m, b", train_mb.reshape(1, -1)[0])
-    # print("train loss", train_los)
-    # print("steps", step)
-    #
-    # # test phase
-    # x_ones_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
-    # print("test loss", matrix_loss(x_ones=x_ones_test, y=y_test, m_b=train_mb, size=test_len))
+    print("\n######## uni-variate linear regression ########")
+    for idx in range(len(data[0]) - 1):
+        print(f"\n######## using col: [{idx}] ########")
+        # train phase
+        prep_data = prepare_data_univariate(df=data, idx=idx)
+        # prep_data[0], scales = standardize(prep_data[0])
+        ret = regression(
+            prepared_data=prep_data,
+            alpha=0.00001
+        )
+        print(ret)
 
+        # test phase
+        x_test, y_test = prepare_data_univariate(df=data, idx=1, start=train_len, end=train_len + test_len)
+        # print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
+        print(matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len))
+    ##########
+
+    print("\n######## multi-variate linear regression ########")
+
+    # train phase
+    prep_data = prepare_data_multivariate(df=data)
+    prep_data[0], scales = standardize(prep_data[0])
+    ret = regression(
+        prepared_data=prep_data,
+        alpha=0.000001
+    )
+    print(ret)
+
+    # test phase
+    x_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
+    print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
+
+    ##########
+
+    print("\n######## multi-variate polynomial regression ########")
+
+    # train phase
     prep_data = prepare_data_polynomial(df=data)
     prep_data[0], scales = standardize(prep_data[0])
-    ret = multivariate_polynomial_regression(
+    ret = regression(
         prepared_data=prep_data
     )
     print(ret)
 
-    x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len+test_len)
+    # test phase
+    x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len)
     print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
+
+
