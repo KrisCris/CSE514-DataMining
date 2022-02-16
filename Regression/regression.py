@@ -79,10 +79,10 @@ def standardize(x, scales=None):
         return x, arr
 
 
-def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.00001, debug=False):
+def regression(x_ones, y, alpha=0.000000000001, max_steps=50000, stop_val=0.00001, debug=False):
     # train phrase
-    x_45_train, y_train = prepared_data
-    m_b = prepare_m_b(x_45_train.shape[1])
+    # x_ones, y = prepared_data
+    m_b = prepare_m_b(x_ones.shape[1])
 
     # init vars
     norm_derivatives = inf
@@ -91,7 +91,7 @@ def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.
 
     while norm_derivatives > stop_val and steps < max_steps:
         # derivatives of m and b
-        derivatives = matrix_derivatives(y=y_train, x=x_45_train, w=m_b, size=train_len)
+        derivatives = matrix_derivatives(y=y, x=x_ones, w=m_b, size=len(y))
 
         # update m and b
         m_b -= (derivatives.T * alpha)
@@ -101,17 +101,56 @@ def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.
         steps += 1
 
         # update learning rate based on loss
-        new_loss = matrix_loss(x_45_train, y_train, m_b, train_len)
+        new_loss = matrix_loss(x_ones=x_ones, y=y, m_b=m_b, size=len(y))
         alpha = update_alpha(alpha=alpha, los=loss, new_los=new_loss)
         loss = new_loss
         if debug:
             print(loss)
 
-    return [m_b, loss, steps]
+    return m_b, loss, steps
 
-def run(model, learning_rate , steps_stop, derivative_stop, file="./Concrete_Data.xls", train_len=900, test_len=130, std=True):
-    data = pd.read_excel(io=file, sheet_name='Sheet1').to_numpy()
-    
+
+def r_square(mse, y):
+    return 1 - mse / np.var(y)
+
+
+def plot(x, y, pred_y, name):
+    plt.title(f"Feature {name}")
+    plt.xlabel("Predictor")
+    plt.ylabel("Response")
+    plt.scatter(x, y)
+    plt.plot(x, pred_y, color="red")
+    plt.savefig(f'{name}.png')
+    plt.clf()
+
+
+def train(data_prep, std=False,
+          derivative_stop=0.00001, steps_stop=500000, learning_rate=0.000001, save_plt=False, name=None):
+    scaler = None
+    x, y = data_prep
+    x_bk = x
+    if std:
+        x, scaler = standardize(x)
+    params, loss, steps = regression(x_ones=x, y=y, stop_val=derivative_stop, max_steps=steps_stop, alpha=learning_rate)
+    print("[TRAINING]")
+    print(f"Standardized = {std}")
+    print(f"Params: {params.reshape(1, -1)[0]}")
+    print(f"Loss: {loss}")
+    print(f"Steps: {steps}")
+    print(f"R Square on Training Set: {r_square(mse=loss, y=y)}")
+    if save_plt:
+        plot(x=x_bk[:, 0].reshape(-1, 1), y=y, pred_y=x @ params, name=name if not std else f'{name}-std')
+
+    return params, scaler
+
+
+def test(data_prep, params, std=False, scaler=None):
+    x, y = data_prep
+    loss = matrix_loss(x_ones=x if not std else standardize(x=x, scales=scaler), y=y, m_b=params, size=len(y))
+    print("[TESTING]")
+    print(f"Standardized = {std}")
+    print(f"LOSS = {loss}")
+    print(f"R Square = {r_square(mse=loss, y=y)}\n")
 
 
 if __name__ == '__main__':
@@ -119,89 +158,37 @@ if __name__ == '__main__':
     train_len = 900
     test_len = 130
 
-    print("\n######## uni-variate linear regression ########")
+    print("######## uni-variate linear regression ########")
     for col in range(len(data[0]) - 1):
-        print(f"\n######## using col: [{col}] ########")
-        # train phase
-        prep_data = prepare_data_univariate(df=data, idx=col)
-        prep_data[0], scale = standardize(prep_data[0])
-        ret = regression(
-            prepared_data=prep_data,
-            stop_val=0.00000001,
-            max_steps=500000,
-            alpha=0.000001
-        )
-        print(ret)
+        print(f"######## Col: {col} ########")
+        # STD
+        param, scale = train(data_prep=prepare_data_univariate(df=data, idx=col),
+                             std=True, derivative_stop=0.00000001, save_plt=True, name=col)
+        test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
+             params=param, std=True, scaler=scale)
+        # NO STD
+        param, scale = train(data_prep=prepare_data_univariate(df=data, idx=col),
+                             derivative_stop=0.00000001, save_plt=True, name=col)
+        test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
+             params=param)
 
-        # R Square on Training Set
-        y_train_var = np.var(prep_data[1])
-        MSE = ret[1]
-        rs = 1 - MSE / y_train_var
-        print("R Square on Training Set: ", rs)
+    print("######## multi-variate linear regression ########")
+    # STD
+    param, scale = train(data_prep=prepare_data_multivariate(df=data), std=True)
+    test(data_prep=prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len),
+         params=param, std=True, scaler=scale)
+    # NO STD
+    param, scale = train(data_prep=prepare_data_multivariate(df=data))
+    test(data_prep=prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len),
+         params=param)
 
-        # plt
-        plt_x = data[0:900, col].reshape(-1, 1)
-        plt.title(f"Feature {col}")
-        plt.xlabel("Predictor")
-        plt.ylabel("Response")
-        plt.scatter(plt_x, prep_data[1])
-        plt.plot(plt_x, prep_data[0]@ret[0], color="red")
-        plt.savefig(f'{col}_{rs}.png')
-        plt.clf()
+    print("######## multi-variate polynomial regression ########")
+    # STD
+    param, scale = train(data_prep=prepare_data_polynomial(df=data), std=True, derivative_stop=0.000001)
+    test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
+         params=param, std=True, scaler=scale)
+    # NO STD
+    param, scale = train(data_prep=prepare_data_polynomial(df=data), derivative_stop=0.000001)
+    test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
+         params=param)
 
-        # test phase
-        x_test, y_test = prepare_data_univariate(df=data, idx=1, start=train_len, end=train_len + test_len)
-        test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
-        # test_loss = matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len)
-        print(test_loss)
-        print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
-
-    ##########
-
-    print("\n######## multi-variate linear regression ########")
-    # train phase
-    prep_data = prepare_data_multivariate(df=data)
-    prep_data[0], scale = standardize(prep_data[0])
-    ret = regression(
-        prepared_data=prep_data,
-        alpha=0.000001
-    )
-    print(ret)
-
-    # R Square on Training Set
-    y_train_var = np.var(prep_data[1])
-    MSE = ret[1]
-    rs = 1 - MSE / y_train_var
-    print("R Square on Training Set: ", rs)
-
-    # test phase
-    x_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
-    test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
-    print(test_loss)
-    print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
-
-    ##########
-
-    print("\n######## multi-variate polynomial regression ########")
-    # train phase
-    prep_data = prepare_data_polynomial(df=data)
-    prep_data[0], scale = standardize(prep_data[0])
-    ret = regression(
-        prepared_data=prep_data,
-        alpha=0.000001
-        # debug=True
-    )
-    print(ret)
-
-    # R Square on Training Set
-    y_train_var = np.var(prep_data[1])
-    MSE = ret[1]
-    rs = 1 - MSE / y_train_var
-    print("R Square on Training Set: ", rs)
-
-    # test phase
-    x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len)
-    test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
-    # test_loss = matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len)
-    print(test_loss)
-    print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
