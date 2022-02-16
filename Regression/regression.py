@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from math import inf
+import matplotlib.pyplot as plt
 
 
 def matrix_loss(x_ones, y, m_b, size):
@@ -78,7 +79,7 @@ def standardize(x, scales=None):
         return x, arr
 
 
-def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.001):
+def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.001, debug=False):
     # train phrase
     x_45_train, y_train = prepared_data
     m_b = prepare_m_b(x_45_train.shape[1])
@@ -103,7 +104,8 @@ def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.
         new_loss = matrix_loss(x_45_train, y_train, m_b, train_len)
         alpha = update_alpha(alpha=alpha, los=loss, new_los=new_loss)
         loss = new_loss
-        # print(loss)
+        if debug:
+            print(loss)
 
     return [m_b, loss, steps]
 
@@ -118,21 +120,38 @@ if __name__ == '__main__':
         print(f"\n######## using col: [{col}] ########")
         # train phase
         prep_data = prepare_data_univariate(df=data, idx=col)
-        # prep_data[0], scale = standardize(prep_data[0])
+        prep_data[0], scale = standardize(prep_data[0])
         ret = regression(
             prepared_data=prep_data,
-            alpha=0.00001
+            stop_val=0.00000001,
+            max_steps=10000000,
+            alpha=0.000001
         )
         print(ret)
 
+        # R Square on Training Set
+        y_train_var = np.var(prep_data[1])
+        MSE = ret[1]
+        rs = 1 - MSE / y_train_var
+        print("R Square on Training Set: ", rs)
+
+        # plt
+        plt_x = data[0:900, col].reshape(-1, 1)
+        plt.scatter(plt_x, prep_data[1])
+        plt.plot(plt_x, prep_data[0]@ret[0], color="red")
+        plt.savefig(f'{col}_{rs}.png')
+        plt.clf()
+
         # test phase
         x_test, y_test = prepare_data_univariate(df=data, idx=1, start=train_len, end=train_len + test_len)
-        # print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
-        print(matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len))
+        test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
+        # test_loss = matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len)
+        print(test_loss)
+        print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
+
     ##########
 
     print("\n######## multi-variate linear regression ########")
-
     # train phase
     prep_data = prepare_data_multivariate(df=data)
     prep_data[0], scale = standardize(prep_data[0])
@@ -142,22 +161,40 @@ if __name__ == '__main__':
     )
     print(ret)
 
+    # R Square on Training Set
+    y_train_var = np.var(prep_data[1])
+    MSE = ret[1]
+    rs = 1 - MSE / y_train_var
+    print("R Square on Training Set: ", rs)
+
     # test phase
     x_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
-    print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
+    test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
+    print(test_loss)
+    print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
 
     ##########
 
     print("\n######## multi-variate polynomial regression ########")
-
     # train phase
     prep_data = prepare_data_polynomial(df=data)
     prep_data[0], scale = standardize(prep_data[0])
     ret = regression(
-        prepared_data=prep_data
+        prepared_data=prep_data,
+        alpha=0.000001
+        # debug=True
     )
     print(ret)
 
+    # R Square on Training Set
+    y_train_var = np.var(prep_data[1])
+    MSE = ret[1]
+    rs = 1 - MSE / y_train_var
+    print("R Square on Training Set: ", rs)
+
     # test phase
     x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len)
-    print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
+    test_loss = matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len)
+    # test_loss = matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len)
+    print(test_loss)
+    print("R Square on Testing Set: ", 1 - test_loss / y_train_var)
