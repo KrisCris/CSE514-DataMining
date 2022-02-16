@@ -109,16 +109,16 @@ def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.
 
 
 if __name__ == '__main__':
-    data = pd.read_excel('./Concrete_Data.xls').to_numpy()
+    data = pd.read_excel(io='./Concrete_Data.xls', sheet_name='Sheet1').to_numpy()
     train_len = 900
     test_len = 130
 
     print("\n######## uni-variate linear regression ########")
-    for idx in range(len(data[0]) - 1):
-        print(f"\n######## using col: [{idx}] ########")
+    for col in range(len(data[0]) - 1):
+        print(f"\n######## using col: [{col}] ########")
         # train phase
-        prep_data = prepare_data_univariate(df=data, idx=idx)
-        # prep_data[0], scales = standardize(prep_data[0])
+        prep_data = prepare_data_univariate(df=data, idx=col)
+        # prep_data[0], scale = standardize(prep_data[0])
         ret = regression(
             prepared_data=prep_data,
             alpha=0.00001
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
         # test phase
         x_test, y_test = prepare_data_univariate(df=data, idx=1, start=train_len, end=train_len + test_len)
-        # print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
+        # print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
         print(matrix_loss(x_ones=x_test, y=y_test, m_b=ret[0], size=test_len))
     ##########
 
@@ -135,7 +135,7 @@ if __name__ == '__main__':
 
     # train phase
     prep_data = prepare_data_multivariate(df=data)
-    prep_data[0], scales = standardize(prep_data[0])
+    prep_data[0], scale = standardize(prep_data[0])
     ret = regression(
         prepared_data=prep_data,
         alpha=0.000001
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
     # test phase
     x_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
-    print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
+    print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
 
     ##########
 
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     # train phase
     prep_data = prepare_data_polynomial(df=data)
-    prep_data[0], scales = standardize(prep_data[0])
+    prep_data[0], scale = standardize(prep_data[0])
     ret = regression(
         prepared_data=prep_data
     )
@@ -160,6 +160,4 @@ if __name__ == '__main__':
 
     # test phase
     x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len)
-    print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
-
-
+    print(matrix_loss(x_ones=standardize(x=x_test, scales=scale), y=y_test, m_b=ret[0], size=test_len))
