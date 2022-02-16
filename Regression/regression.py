@@ -57,7 +57,7 @@ def prepare_m_b(nums):
 
 
 def matrix_derivatives(y, x, w, size):
-    # http://vxy10.github.io/2016/06/25/lin-reg-matrix/
+    # Credit: http://vxy10.github.io/2016/06/25/lin-reg-matrix/
     return (w.T @ x.T @ x - y.T @ x) / size
 
 
@@ -79,7 +79,7 @@ def standardize(x, scales=None):
         return x, arr
 
 
-def regression(x_ones, y, alpha=0.000000000001, max_steps=50000, stop_val=0.00001, debug=False):
+def regression(x_ones, y, alpha, max_steps, stop_val, debug=False):
     # train phrase
     # x_ones, y = prepared_data
     m_b = prepare_m_b(x_ones.shape[1])
@@ -132,25 +132,24 @@ def train(data_prep, std=False,
     if std:
         x, scaler = standardize(x)
     params, loss, steps = regression(x_ones=x, y=y, stop_val=derivative_stop, max_steps=steps_stop, alpha=learning_rate)
+    print(f"#### STD: {std} ####")
     print("[TRAINING]")
-    print(f"Standardized = {std}")
     print(f"Params: {params.reshape(1, -1)[0]}")
     print(f"Loss: {loss}")
     print(f"Steps: {steps}")
-    print(f"R Square on Training Set: {r_square(mse=loss, y=y)}")
+    print(f"R Square on Training Set: {r_square(mse=loss, y=y)}\n")
     if save_plt:
         plot(x=x_bk[:, 0].reshape(-1, 1), y=y, pred_y=x @ params, name=name if not std else f'{name}-std')
 
-    return params, scaler
+    return (params, scaler) if std else params
 
 
 def test(data_prep, params, std=False, scaler=None):
     x, y = data_prep
     loss = matrix_loss(x_ones=x if not std else standardize(x=x, scales=scaler), y=y, m_b=params, size=len(y))
     print("[TESTING]")
-    print(f"Standardized = {std}")
-    print(f"LOSS = {loss}")
-    print(f"R Square = {r_square(mse=loss, y=y)}\n")
+    print(f"LOSS: {loss}")
+    print(f"R Square: {r_square(mse=loss, y=y)}\n")
 
 
 if __name__ == '__main__':
@@ -167,8 +166,8 @@ if __name__ == '__main__':
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param, std=True, scaler=scale)
         # NO STD
-        param, scale = train(data_prep=prepare_data_univariate(df=data, idx=col),
-                             derivative_stop=0.00000001, save_plt=True, name=col)
+        param = train(data_prep=prepare_data_univariate(df=data, idx=col),
+                      derivative_stop=0.00000001, save_plt=True, name=col)
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param)
 
@@ -178,7 +177,7 @@ if __name__ == '__main__':
     test(data_prep=prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len),
          params=param, std=True, scaler=scale)
     # NO STD
-    param, scale = train(data_prep=prepare_data_multivariate(df=data))
+    param = train(data_prep=prepare_data_multivariate(df=data))
     test(data_prep=prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len),
          params=param)
 
@@ -188,7 +187,7 @@ if __name__ == '__main__':
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param, std=True, scaler=scale)
     # NO STD
-    param, scale = train(data_prep=prepare_data_polynomial(df=data), derivative_stop=0.000001)
+    param = train(data_prep=prepare_data_polynomial(df=data),
+                  derivative_stop=0.000001, learning_rate=0.0000000001)
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param)
-
