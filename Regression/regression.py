@@ -79,7 +79,7 @@ def standardize(x, scales=None):
         return x, arr
 
 
-def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.001, debug=False):
+def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.00001, debug=False):
     # train phrase
     x_45_train, y_train = prepared_data
     m_b = prepare_m_b(x_45_train.shape[1])
@@ -109,6 +109,10 @@ def regression(prepared_data, alpha=0.000000000001, max_steps=50000, stop_val=0.
 
     return [m_b, loss, steps]
 
+def run(model, learning_rate , steps_stop, derivative_stop, file="./Concrete_Data.xls", train_len=900, test_len=130, std=True):
+    data = pd.read_excel(io=file, sheet_name='Sheet1').to_numpy()
+    
+
 
 if __name__ == '__main__':
     data = pd.read_excel(io='./Concrete_Data.xls', sheet_name='Sheet1').to_numpy()
@@ -124,7 +128,7 @@ if __name__ == '__main__':
         ret = regression(
             prepared_data=prep_data,
             stop_val=0.00000001,
-            max_steps=10000000,
+            max_steps=500000,
             alpha=0.000001
         )
         print(ret)
@@ -137,6 +141,9 @@ if __name__ == '__main__':
 
         # plt
         plt_x = data[0:900, col].reshape(-1, 1)
+        plt.title(f"Feature {col}")
+        plt.xlabel("Predictor")
+        plt.ylabel("Response")
         plt.scatter(plt_x, prep_data[1])
         plt.plot(plt_x, prep_data[0]@ret[0], color="red")
         plt.savefig(f'{col}_{rs}.png')
