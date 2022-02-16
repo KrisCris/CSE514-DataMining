@@ -22,7 +22,7 @@ def prepare_data_multivariate(df, start=0, end=900):
     prep_x = df[start:end, :-1]
     # n * m+1 matrix, last col are ones
     prep_x_ones = np.concatenate([prep_x, np.ones((prep_x.shape[0], 1))], axis=1)
-    return prep_x_ones, prep_y
+    return [prep_x_ones, prep_y]
 
 
 def prepare_data_polynomial(df, start=0, end=900):
@@ -37,7 +37,7 @@ def prepare_data_polynomial(df, start=0, end=900):
             tmp = (prep_x[:, i] * prep_x[:, j]).reshape(-1, 1)
             prep_x_45 = np.concatenate([prep_x_45, tmp], axis=1)
     prep_x_45 = np.concatenate([prep_x_45, np.ones((prep_x.shape[0], 1))], axis=1)
-    return prep_x_45, prep_y
+    return [prep_x_45, prep_y]
 
 
 def prepare_m_b(nums):
@@ -50,14 +50,22 @@ def matrix_derivatives(y, x, w, size):
     return (w.T @ x.T @ x - y.T @ x) / size
 
 
-def standardize(x):
-    for i in range(x.shape[1]-1):
-        max_val = x[:, i].max()
-        min_val = x[:, i].min()
-        if max_val == min_val:
-            continue
-        x[:, i] = (x[:, i] - min_val) / (max_val-min_val)
-    return x
+def standardize(x, scales=None):
+    if scales:
+        for i in range(len(scales)):
+            x[:, i] = (x[:, i] - scales[i][0]) / scales[i][1]
+        return x
+    else:
+        arr = []
+        for i in range(x.shape[1]-1):
+            max_val = x[:, i].max()
+            min_val = x[:, i].min()
+            gap = max_val - min_val
+            if gap == 0:
+                continue
+            x[:, i] = (x[:, i] - min_val) / gap
+            arr.append((min_val, gap))
+        return x, arr
 
 
 
@@ -92,11 +100,9 @@ def multivariable_regression(prepared_data):
     return m_b, loss, steps
 
 
-def multivariate_polynomial_regression(prepared_data, standard=False, alpha=0.000000000001, max_steps=500000):
+def multivariate_polynomial_regression(prepared_data, alpha=0.000000000001, max_steps=500000):
     # train phrase
     x_45_train, y_train = prepared_data
-    if standard:
-        x_45_train = standardize(x_45_train)
     m_b = prepare_m_b(x_45_train.shape[1])
 
     # init vars
@@ -121,7 +127,7 @@ def multivariate_polynomial_regression(prepared_data, standard=False, alpha=0.00
         loss = new_loss
         print(loss)
 
-    return m_b, loss, steps
+    return [m_b, loss, steps]
 
 
 if __name__ == '__main__':
@@ -139,7 +145,12 @@ if __name__ == '__main__':
     # x_ones_test, y_test = prepare_data_multivariate(df=data, start=train_len, end=train_len + test_len)
     # print("test loss", matrix_loss(x_ones=x_ones_test, y=y_test, m_b=train_mb, size=test_len))
 
-    print(multivariate_polynomial_regression(
-        prepared_data=prepare_data_polynomial(df=data),
-        standard=True
-    ))
+    prep_data = prepare_data_polynomial(df=data)
+    prep_data[0], scales = standardize(prep_data[0])
+    ret = multivariate_polynomial_regression(
+        prepared_data=prep_data
+    )
+    print(ret)
+
+    x_test, y_test = prepare_data_polynomial(df=data, start=train_len, end=train_len+test_len)
+    print(matrix_loss(x_ones=standardize(x=x_test, scales=scales), y=y_test, m_b=ret[0], size=test_len))
