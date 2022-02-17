@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import numpy as np
 from math import inf
@@ -107,7 +109,7 @@ def regression(x_ones, y, alpha, max_steps, stop_val, debug=False):
         if debug:
             print(loss)
 
-    return m_b, loss, steps
+    return m_b, loss, steps, norm_derivatives
 
 
 def r_square(mse, y):
@@ -125,18 +127,22 @@ def plot(x, y, pred_y, name):
 
 
 def train(data_prep, std=False,
-          derivative_stop=0.00001, steps_stop=500000, learning_rate=0.000001, save_plt=False, name=None):
+          derivative_stop=0.000001, steps_stop=1000000, learning_rate=0.000001, save_plt=False, name=None):
+    t = time.time()
     scaler = None
     x, y = data_prep
     x_bk = x
     if std:
         x, scaler = standardize(x)
-    params, loss, steps = regression(x_ones=x, y=y, stop_val=derivative_stop, max_steps=steps_stop, alpha=learning_rate)
+    params, loss, steps, l2 = regression(x_ones=x, y=y, stop_val=derivative_stop, max_steps=steps_stop,
+                                         alpha=learning_rate)
     print(f"#### STD: {std} ####")
     print("[TRAINING]")
     print(f"Params: {params.reshape(1, -1)[0]}")
     print(f"Loss: {loss}")
+    print(f"Final L2Derivatives: {l2}")
     print(f"Steps: {steps}")
+    print(f"Training Time: {int(time.time() - t)}s")
     print(f"R Square on Training Set: {r_square(mse=loss, y=y)}\n")
     if save_plt:
         plot(x=x_bk[:, 0].reshape(-1, 1), y=y, pred_y=x @ params, name=name if not std else f'{name}-std')
@@ -162,12 +168,12 @@ if __name__ == '__main__':
         print(f"######## Col: {col} ########")
         # STD
         param, scale = train(data_prep=prepare_data_univariate(df=data, idx=col),
-                             std=True, derivative_stop=0.00000001, save_plt=True, name=col)
+                             std=True, derivative_stop=0.0000001, save_plt=True, name=col)
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param, std=True, scaler=scale)
         # NO STD
         param = train(data_prep=prepare_data_univariate(df=data, idx=col),
-                      derivative_stop=0.00000001, save_plt=True, name=col)
+                      derivative_stop=0.0000001, save_plt=True, name=col)
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param)
 
@@ -183,11 +189,10 @@ if __name__ == '__main__':
 
     print("######## multi-variate polynomial regression ########")
     # STD
-    param, scale = train(data_prep=prepare_data_polynomial(df=data), std=True, derivative_stop=0.000001)
+    param, scale = train(data_prep=prepare_data_polynomial(df=data), std=True, derivative_stop=0.001)
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param, std=True, scaler=scale)
     # NO STD
-    param = train(data_prep=prepare_data_polynomial(df=data),
-                  derivative_stop=0.000001, learning_rate=0.0000000001)
+    param = train(data_prep=prepare_data_polynomial(df=data), learning_rate=0.0000000001)
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param)
