@@ -70,11 +70,11 @@ def standardize(x, scales=None):
         return x
     else:
         arr = []
-        for i in range(x.shape[1] - 1):
+        for i in range(x.shape[1]):
             max_val = x[:, i].max()
             min_val = x[:, i].min()
             gap = max_val - min_val
-            if gap == 0:
+            if gap == 0 and min_val == 1:
                 continue
             x[:, i] = (x[:, i] - min_val) / gap
             arr.append((min_val, gap))
@@ -168,12 +168,12 @@ if __name__ == '__main__':
         print(f"######## Col: {col} ########")
         # STD
         param, scale = train(data_prep=prepare_data_univariate(df=data, idx=col),
-                             std=True, derivative_stop=0.0000001, save_plt=True, name=col)
+                             std=True, derivative_stop=0.000001, save_plt=True, name=col)
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param, std=True, scaler=scale)
         # NO STD
         param = train(data_prep=prepare_data_univariate(df=data, idx=col),
-                      derivative_stop=0.0000001, save_plt=True, name=col)
+                      derivative_stop=0.000001, save_plt=True, name=col)
         test(data_prep=prepare_data_univariate(df=data, idx=col, start=train_len, end=train_len + test_len),
              params=param)
 
@@ -193,6 +193,6 @@ if __name__ == '__main__':
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param, std=True, scaler=scale)
     # NO STD
-    param = train(data_prep=prepare_data_polynomial(df=data), learning_rate=0.0000000001)
+    param = train(data_prep=prepare_data_polynomial(df=data), learning_rate=0.0000000001, derivative_stop=0.001)
     test(data_prep=prepare_data_polynomial(df=data, start=train_len, end=train_len + test_len),
          params=param)
