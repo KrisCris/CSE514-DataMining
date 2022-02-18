@@ -115,17 +115,17 @@ See above.
 
 ### (+4 bonus pts) Description of Data Standardization
 
-#### Method
+I applied scaling (min-max normalization) to each row of features, to make them fit in between 0 and 1. Since all the data are ranged in [0,1], the gradient decent using single learning rate in multi-variate models is much faster and works better. The following 2 histograms of the distribution of all features combined, shows that all features are on the same scale after standardization.
 
-I applied scaling (min-max normalization) to each row of features, to make them fit in between 0 and 1.
+![distribution_all_nonstd](distribution_all_nonstd.png)
 
-#### Histograms
+![distribution_all_std](distribution_all_std.png)
 
-![non-std-dist](non-std-dist.png)
+In the mean time, the pattern of features won't change before and after the scaling so we won't lost information in the process. Take the diagram of feature 0 as example, shown below:
 
-![std-dist](std-dist.png)
+![ft0_non_scaled](ft0_non_scaled.png)
 
-The value of pre-processed data are more evenly distributed comparing to the un-preprocessed one.
+![ft0_scaled](ft0_scaled.png)
 
 
 
